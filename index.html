@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulador del Algoritmo del Banquero — UMG</title>
+<style>
+/* Simulador del Algoritmo del Banquero — tema cyber */
+:root {
+  --bg: #05070d;
+  --card: rgba(13, 18, 30, 0.88);
+  --card2: #0d1220;
+  --line: #1c2d40;
+  --txt: #d7f5ff;
+  --mut: #5f7fa6;
+  --cyan: #00e5ff;
+  --magenta: #ff2bd6;
+  --ok: #00ff9c;
+  --bad: #ff3860;
+  --blue: var(--cyan);
+  --mono: "Cascadia Code", Consolas, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--txt);
+  font: 15px/1.5 var(--mono);
+  background-color: var(--bg);
+  transition: background-color .45s ease, color .45s ease;
+}
+/* capas decorativas del fondo cyber (se desvanecen al pasar a modo claro) */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 400px at 80% -10%, rgba(0, 229, 255, 0.07), transparent 60%),
+    radial-gradient(700px 400px at 10% 110%, rgba(255, 43, 214, 0.05), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(0, 229, 255, 0.035) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(0, 229, 255, 0.035) 39px 40px);
+  opacity: 1; transition: opacity .45s ease;
+}
+body[data-theme="light"]::before { opacity: 0; }
+.wrap { max-width: 992px; margin: 0 auto; padding: 24px 16px 50px; }
+.hidden { display: none !important; }
+
+/* header */
+.hero { display: flex; justify-content: space-between; align-items: start; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+h1 {
+  font: 700 21px/1.2 var(--mono); margin: 0; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--cyan); text-shadow: 0 0 12px rgba(0, 229, 255, 0.45);
+}
+h1::before { content: "> "; color: var(--magenta); text-shadow: none; }
+.sub { color: var(--mut); margin: 4px 0 0; font-size: 13px; }
+.status-pill {
+  font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: 4px;
+  background: var(--card2); border: 1px solid var(--line); color: var(--mut);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.status-pill.safe { color: var(--ok); border-color: var(--ok); text-shadow: 0 0 8px rgba(0, 255, 156, 0.5); }
+.status-pill.unsafe { color: var(--bad); border-color: var(--bad); text-shadow: 0 0 8px rgba(255, 56, 96, 0.5); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--mut); margin-right: 7px; }
+.status-pill.safe .dot { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.status-pill.unsafe .dot { background: var(--bad); box-shadow: 0 0 6px var(--bad); }
+
+/* cards */
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+  padding: 16px; margin-bottom: 14px;
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.05), inset 0 0 18px rgba(0, 0, 0, 0.35);
+}
+.card h2 {
+  margin: 0 0 10px; font: 700 14px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan);
+}
+.card h2::before { content: "// "; color: var(--magenta); }
+.hint { color: var(--mut); font-size: 12px; margin: 0 0 12px; }
+
+/* controls */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; }
+input[type="number"], input[type="text"], select {
+  font: 14px var(--mono); padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--card2); color: var(--cyan);
+}
+input:focus, select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 8px rgba(0, 229, 255, 0.35); }
+input[type="number"] { width: 74px; }
+input.cell { width: 100%; min-width: 0; text-align: center; font: 13px var(--mono); padding: 3px 1px; color: var(--cyan); }
+input.cell.bad { border-color: var(--bad); box-shadow: 0 0 8px rgba(255, 56, 96, 0.4); }
+.btn {
+  font: 600 13px var(--mono); padding: 7px 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 4px;
+  background: transparent; color: var(--cyan);
+  letter-spacing: 1px; text-transform: uppercase;
+  transition: box-shadow .15s, border-color .15s, background .15s;
+}
+.btn:hover { border-color: var(--cyan); background: rgba(0, 229, 255, 0.08); box-shadow: 0 0 10px rgba(0, 229, 255, 0.25); }
+.btn.primary {
+  border-color: var(--cyan); color: var(--cyan);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(255, 43, 214, 0.1));
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+}
+.btn.primary:hover { background: rgba(0, 229, 255, 0.18); box-shadow: 0 0 14px rgba(0, 229, 255, 0.4); }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.btn[disabled] { opacity: .4; cursor: default; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* tables */
+.avail-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.avail-box { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.avail-box span { font: 11px var(--mono); color: var(--magenta); letter-spacing: 1px; }
+.tables { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .tables { grid-template-columns: 1fr; } }
+.mattitle { font: 600 12px var(--mono); color: var(--mut); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.mattitle b, .mattitle strong { color: var(--cyan); }
+.tablebox { overflow-x: auto; }
+table.matrix { border-collapse: collapse; width: 100%; }
+table.matrix th, table.matrix td { padding: 4px 4px; text-align: center; border: 1px solid var(--line); }
+table.matrix thead th { background: rgba(0, 229, 255, 0.06); color: var(--cyan); font: 600 12px var(--mono); }
+table.matrix tbody th { background: rgba(255, 43, 214, 0.06); color: var(--magenta); font: 600 12px var(--mono); width: 36px; }
+table.matrix td.ro { color: var(--txt); font: 13px var(--mono); }
+table.matrix input.cell { font: 13px var(--mono); }
+
+/* result */
+.state-banner { padding: 11px 13px; border-radius: 4px; font-size: 13px; background: var(--card2); border: 1px solid var(--line); transition: all .25s; animation: fade .25s; }
+.state-banner.safe { border-color: var(--ok); background: rgba(0, 255, 156, 0.05); box-shadow: 0 0 14px rgba(0, 255, 156, 0.12); }
+.state-banner.unsafe { border-color: var(--bad); background: rgba(255, 56, 96, 0.05); box-shadow: 0 0 14px rgba(255, 56, 96, 0.12); }
+.seq { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 12px 0 4px; animation: fade .3s; }
+.chip {
+  padding: 4px 11px; border: 1px solid var(--cyan); border-radius: 3px;
+  color: var(--cyan); font: 700 14px var(--mono); background: rgba(0, 229, 255, 0.06);
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.55); transition: transform .12s, box-shadow .12s;
+}
+.chip:hover { transform: translateY(-2px); box-shadow: 0 0 12px rgba(0, 229, 255, 0.4); }
+.arrow { color: var(--magenta); font-weight: 700; }
+.steps { margin-top: 12px; }
+.step {
+  padding: 7px 10px; font-size: 12px; border-bottom: 1px solid rgba(28, 45, 64, 0.6);
+  border-left: 3px solid transparent; transition: background .15s, border-color .15s;
+}
+.step:last-child { border-bottom: 0; }
+.step:hover { background: rgba(0, 229, 255, 0.04); }
+.step.yes { border-left-color: var(--ok); }
+.step.no { border-left-color: rgba(95, 127, 166, 0.4); }
+.step .mono { font: 12px var(--mono); color: var(--mut); display: block; }
+.step .tag { font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.step.yes .tag { color: var(--ok); }
+.step.no .tag { color: var(--mut); }
+/* fila resaltada al revisar el paso a paso */
+table.matrix tr.hl th, table.matrix tr.hl td { background: rgba(0, 229, 255, 0.1); }
+/* fila de proceso que no puede terminar (estado inseguro) */
+table.matrix tr.rowbad th { color: var(--bad); }
+table.matrix tr.rowbad td { border-color: rgba(255, 56, 96, 0.5); }
+/* semáforo: celdas de Need según la condición Need <= Work */
+table.matrix td.cellok { color: var(--ok); background: rgba(0, 255, 156, 0.07); }
+table.matrix td.cellbad { color: var(--bad); background: rgba(255, 56, 96, 0.09); }
+#stepCtrl { margin: 12px 0 0; align-items: center; }
+#stepCount { margin-left: 6px; }
+@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+/* request */
+.req-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: end; }
+@media (max-width: 640px) { .req-grid { grid-template-columns: 1fr; } }
+.verdict {
+  margin-top: 12px; border: 1px solid var(--line); border-radius: 4px;
+  padding: 9px 12px; font-size: 12px; font-family: var(--mono);
+}
+.verdict.concedida { border-color: var(--ok); background: rgba(0, 255, 156, 0.05); }
+.verdict.denegada, .verdict.espera, .verdict.excede-max { border-color: var(--bad); background: rgba(255, 56, 96, 0.05); }
+.verdict.invalida { color: var(--magenta); }
+
+/* errors */
+.errors { border: 1px solid var(--bad); border-radius: 4px; padding: 9px 13px; font-size: 12px; margin-top: 10px; background: rgba(255, 56, 96, 0.06); }
+.errors li { margin: 3px 0; }
+
+/* ---- tema claro (alternativa sobria) ---- */
+body[data-theme="light"] {
+  --bg: #f4f4f2; --card: #ffffff; --card2: #f4f3f0; --line: #d8d6d0;
+  --txt: #22262b; --mut: #6d757d; --cyan: #2c5e9e; --magenta: #b0347e;
+  --ok: #1d8a4e; --bad: #c0353c;
+  background: var(--bg);
+  text-shadow: none;
+}
+body[data-theme="light"] h1 { color: var(--cyan); text-shadow: none; }
+body[data-theme="light"] h1::before { content: ""; }
+body[data-theme="light"] .card { box-shadow: none; }
+body[data-theme="light"] .btn { background: transparent; color: var(--cyan); text-shadow: none; }
+body[data-theme="light"] .btn:hover { box-shadow: none; background: #f0efec; }
+body[data-theme="light"] .btn.primary { color: #fff; background: var(--cyan); text-shadow: none; }
+body[data-theme="light"] .chip { color: var(--cyan); text-shadow: none; background: #eef3f9; border-color: #b9cfe8; }
+body[data-theme="light"] .chip:hover { box-shadow: none; }
+body[data-theme="light"] input[type="number"],
+body[data-theme="light"] input[type="text"],
+body[data-theme="light"] select { background: #fff; color: var(--txt); }
+body[data-theme="light"] input.cell { color: var(--txt); }
+body[data-theme="light"] input.cell.bad { box-shadow: none; background: #fdf2f2; }
+body[data-theme="light"] .status-pill { text-shadow: none; background: var(--card2); }
+body[data-theme="light"] .status-pill.safe .dot,
+body[data-theme="light"] .status-pill.unsafe .dot { box-shadow: none; }
+body[data-theme="light"] .state-banner.safe,
+body[data-theme="light"] .state-banner.unsafe { box-shadow: none; }
+body[data-theme="light"] .verdict.concedida { background: #eef7f1; }
+body[data-theme="light"] .verdict.denegada,
+body[data-theme="light"] .verdict.espera,
+body[data-theme="light"] .verdict.excede-max { background: #fbf0f0; }
+body[data-theme="light"] .errors { background: #fdf2f2; }
+
+/* ---- transición suave de tema: todos los colores interpolan ---- */
+.transition-theme,
+.transition-theme * {
+  transition:
+    background-color .35s ease,
+    border-color .35s ease,
+    color .35s ease,
+    box-shadow .35s ease,
+    text-shadow .35s ease,
+    opacity .35s ease;
+}
+/* el fondo cyber dibujado en la capa fija descansa sobre su propia opacidad */
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div>
+      <h1>Simulador del Algoritmo del Banquero</h1>
+      <p class="sub">Estado seguro, secuencia de ejecución y solicitudes de recursos — Sistemas Operativos, UMG.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+      <button class="btn small" id="btnTheme">Modo oscuro</button>
+      <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Sin analizar</span></div>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>1. Datos del sistema</h2>
+    <div class="controls">
+      <div class="field"><label>Procesos (N)</label><input type="number" id="inN" min="1" max="12" value="5" /></div>
+      <div class="field"><label>Recursos (M)</label><input type="number" id="inM" min="1" max="6" value="3" /></div>
+      <div class="field"><label>Recursos</label><input type="text" id="inNames" value="A,B,C" style="width:130px" /></div>
+      <button class="btn" id="btnResize">Aplicar</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnSafe">Caso seguro</button>
+      <button class="btn" id="btnUnsafe">Caso inseguro</button>
+      <button class="btn small" id="btnExport">Guardar JSON</button>
+      <button class="btn small" id="btnImport">Cargar JSON</button>
+      <input type="file" id="fileImport" accept=".json" class="hidden" />
+    </div>
+    <div id="errBox"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Matrices</h2>
+    <p class="hint">Need = Max − Allocation se calcula sola. En rojo: valor inválido o Allocation &gt; Max.</p>
+    <div class="avail-row" id="availRow"></div>
+    <div class="tables">
+      <div><div class="mattitle">Allocation</div><div id="tblAlloc"></div></div>
+      <div><div class="mattitle">Max</div><div id="tblMax"></div></div>
+      <div><div class="mattitle">Need</div><div id="tblNeed"></div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="btnRun">Ejecutar algoritmo de seguridad</button>
+    </div>
+  </section>
+
+    <section class="card hidden" id="resultCard">
+    <h2>3. Resultado <button class="btn small" id="btnCopy" style="float:right">Copiar análisis</button></h2>
+    <div class="state-banner" id="resultBanner"></div>
+    <div class="seq" id="seqRow"></div>
+    <div class="btn-row" id="stepCtrl">
+      <button class="btn small" id="btnNext">Siguiente paso</button>
+      <button class="btn small" id="btnAll">Ver todos</button>
+      <span class="hint" id="stepCount" style="margin:0"></span>
+    </div>
+    <div class="steps" id="stepsBox"></div>
+  </section>
+
+  <section class="card">
+    <h2>4. Solicitud de recursos (Request)</h2>
+    <div class="req-grid">
+      <select id="reqPid"></select>
+      <div class="avail-row" id="reqRow"></div>
+      <button class="btn" id="btnRequest">Solicitar</button>
+    </div>
+    <div id="verdictBox"></div>
+    <button class="btn small" id="btnApplyReq" disabled style="margin-top:10px">Aplicar concesión al sistema</button>
+  </section>
+
+</div>
+<script>
+/* ============================================================
+ * banker.js — Núcleo del Algoritmo del Banquero (Dijkstra, 1965)
+ * Sin dependencias. Lógica pura, testeable y reutilizable.
+ * Estructuras (N procesos, M recursos):
+ *   Available [M], Max [N×M], Allocation [N×M], Need = Max − Allocation
+ * ============================================================ */
+'use strict';
+
+/**
+ * Calcula Need = Max − Allocation.
+ * @param {number[][]} max
+ * @param {number[][]} alloc
+ * @returns {number[][]}
+ */
+function calcNeed(max, alloc) {
+  return max.map((row, i) => row.map((v, j) => v - alloc[i][j]));
+}
+
+/** true si a[i] <= b[i] para todo i (Need[i] <= Work). */
+function leq(a, b) {
+  for (let j = 0; j < a.length; j++) if (a[j] > b[j]) return false;
+  return true;
+}
+
+const vecAdd = (a, b) => a.map((v, j) => v + b[j]);
+const vecSub = (a, b) => a.map((v, j) => v - b[j]);
+
+/**
+ * Algoritmo de seguridad (Safety Algorithm, Silberschatz §8.5).
+ * @returns {{
+ *   safe: boolean, sequence: number[], workTrace: number[][],
+ *   finishTrace: boolean[][], steps: object[], finalWork: number[], unfinished: number[]
+ * }}
+ * steps[] contiene un registro por iteración para el modo "paso a paso":
+ *   { iter, candidate, need, workBefore, granted, workAfter, reason }
+ */
+function safetyCheck(available, allocation, need) {
+  const N = allocation.length, M = available.length;
+  const work = [...available];
+  const finish = new Array(N).fill(false);
+  const sequence = [];
+  const workTrace = [[...work]];
+  const finishTrace = [[...finish]];
+  const steps = [];
+  let iter = 0;
+  let progress = true;
+
+  while (progress) {
+    progress = false;
+    iter++;
+    for (let i = 0; i < N; i++) {
+      if (finish[i]) continue;
+      const ok = leq(need[i], work);
+      const before = [...work];
+      if (ok) {
+        for (let j = 0; j < M; j++) work[j] += allocation[i][j];
+        finish[i] = true;
+        sequence.push(i);
+        progress = true;
+        steps.push({
+          iter, candidate: i, need: [...need[i]], workBefore: before,
+          granted: true, workAfter: [...work],
+          reason: `Need[P${i}] ≤ Work → se ejecuta, libera Allocation[P${i}] y Work crece.`,
+        });
+      } else {
+        const lacking = need[i]
+          .map((v, j) => (v > work[j] ? `R${j} (pide ${v}, hay ${work[j]})` : null))
+          .filter(Boolean)
+          .join(', ');
+        steps.push({
+          iter, candidate: i, need: [...need[i]], workBefore: before,
+          granted: false, workAfter: before,
+          reason: `Need[P${i}] > Work — insuficiente: ${lacking}. Se omite en esta vuelta.`,
+        });
+      }
+    }
+  }
+
+  const safe = finish.every(Boolean);
+  return {
+    safe, sequence,
+    workTrace, finishTrace, steps,
+    finalWork: [...work],
+    unfinished: finish.map((f, i) => (!f ? i : -1)).filter((i) => i >= 0),
+  };
+}
+
+/**
+ * Valida el estado del sistema antes de ejecutar el algoritmo.
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+function validateSystem({ N, M, available, max, allocation }) {
+  const errors = [], warnings = [];
+  if (!Number.isInteger(N) || N < 1 || N > 12) errors.push('N debe ser entero entre 1 y 12.');
+  if (!Number.isInteger(M) || M < 1 || M > 6) errors.push('M debe ser entero entre 1 y 6.');
+  if (errors.length) return { errors, warnings };
+
+  const isBad = (v) => !Number.isInteger(v) || v < 0 || v > 999;
+  if (available.length !== M || available.some(isBad))
+    errors.push('Available: debe tener M enteros ≥ 0 (máx 999).');
+  const checkMat = (mat, name) => {
+    if (mat.length !== N || mat.some((r) => r.length !== M || r.some(isBad)))
+      errors.push(`${name}: matriz ${N}×${M} con enteros ≥ 0.`);
+  };
+  checkMat(max, 'Max');
+  checkMat(allocation, 'Allocation');
+  if (errors.length) return { errors, warnings };
+
+  for (let i = 0; i < N; i++)
+    for (let j = 0; j < M; j++)
+      if (allocation[i][j] > max[i][j])
+        errors.push(`Allocation[P${i}][R${j}] = ${allocation[i][j]} supera a Max = ${max[i][j]}.`);
+  return { errors, warnings };
+}
+
+/**
+ * Algoritmo de solicitud (Request / Resource-Request, Silberschatz §8.5.3).
+ * Simula la concesión tentativa y verifica seguridad.
+ * @param {number} pid índice del proceso
+ * @param {number[]} req vector solicitud
+ */
+function requestCheck(available, allocation, need, pid, req) {
+  const M = available.length;
+  if (req.length !== M) return { verdict: 'invalida', msg: 'La solicitud debe tener M valores.' };
+  if (req.some((v) => !Number.isInteger(v) || v < 0))
+    return { verdict: 'invalida', msg: 'La solicitud solo admite enteros ≥ 0.' };
+  if (req.every((v) => v === 0))
+    return { verdict: 'invalida', msg: 'Solicitud vacía: pide al menos 1 recurso.' };
+  for (let j = 0; j < M; j++)
+    if (req[j] > need[pid][j])
+      return {
+        verdict: 'excede-max',
+        msg: `P${pid} pide ${req[j]} de R${j} pero su Need es ${need[pid][j]}. Error: excede su demanda máxima.`,
+      };
+  for (let j = 0; j < M; j++)
+    if (req[j] > available[j])
+      return {
+        verdict: 'espera',
+        msg: `Recursos insuficientes: pide ${req[j]} de R${j}, hay ${available[j]}. P${pid} debe esperar.`,
+      };
+
+  // Concesión tentativa
+  const avail2 = vecSub(available, req);
+  const alloc2 = allocation.map((r, i) => (i === pid ? vecAdd(r, req) : [...r]));
+  const need2 = need.map((r, i) => (i === pid ? vecSub(r, req) : [...r]));
+  const res = safetyCheck(avail2, alloc2, need2);
+  if (res.safe)
+    return {
+      verdict: 'concedida', msg: `Solicitud concedida de forma segura. Nueva secuencia: ${fmtSeq(res.sequence)}.`,
+      result: res, next: { available: avail2, allocation: alloc2, need: need2 },
+    };
+  return {
+    verdict: 'denegada',
+    msg: `Solicitud denegada: el estado resultante sería inseguro (riesgo de interbloqueo). P${pid} debe esperar; la concesión tentativa se descarta.`,
+    result: res,
+  };
+}
+
+/** "P1 → P3 → P4 → P0 → P2" */
+function fmtSeq(seq) {
+  return seq.map((i) => `P${i}`).join(' → ');
+}
+
+// Export para Node (CLI / tests) sin romper el navegador
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { calcNeed, leq, safetyCheck, validateSystem, requestCheck, fmtSeq, vecAdd, vecSub };
+}
+
+</script>
+<script>
+/* ============================================================
+ * app.js — Interfaz del simulador (sin frameworks).
+ * Lee/escribe las tablas, valida en vivo y dibuja resultados.
+ * Usa la lógica pura de banker.js: calcNeed, safetyCheck,
+ * validateSystem, requestCheck, fmtSeq.
+ * ============================================================ */
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const state = { N: 5, M: 3, names: ['A', 'B', 'C'], pendingGrant: null, lastResult: null, stepIdx: 0, showAllSteps: false };
+let staleRow = null; // fila resaltada por el paso a paso interactivo
+
+const clampInt = (v, lo, hi, fb) => {
+  v = parseInt(v, 10);
+  return Number.isInteger(v) ? Math.min(hi, Math.max(lo, v)) : fb;
+};
+const resNames = () => {
+  const raw = $('inNames').value.split(',').map((s) => s.trim()).filter(Boolean);
+  const out = [];
+  for (let j = 0; j < state.M; j++) out.push(raw[j] || String.fromCharCode(65 + j));
+  return out;
+};
+const numVal = (el) => {
+  const v = parseInt(el.value, 10);
+  return Number.isInteger(v) ? v : NaN;
+};
+
+/* ---------- Construcción de tablas ---------- */
+function buildTables(preset) {
+  state.N = clampInt($('inN').value, 1, 12, 5);
+  state.M = clampInt($('inM').value, 1, 6, 3);
+  $('inN').value = state.N;
+  $('inM').value = state.M;
+  state.names = resNames();
+
+  const get = (mat, i, j) => (preset && preset[mat] && preset[mat][i] && preset[mat][i][j] != null ? preset[mat][i][j] : 0);
+  const mkTable = (id, mat, editable) => {
+    let h = '<div class="tablebox"><table class="matrix"><thead><tr><th></th>';
+    state.names.forEach((n) => (h += `<th>${n}</th>`));
+    h += '</tr></thead><tbody>';
+    for (let i = 0; i < state.N; i++) {
+      h += `<tr><th>P${i}</th>`;
+      for (let j = 0; j < state.M; j++) {
+        h += editable
+          ? `<td><input class="cell" data-mat="${mat}" data-i="${i}" data-j="${j}" type="number" min="0" max="999" value="${get(mat, i, j)}"/></td>`
+          : `<td class="ro" data-mat="need" data-i="${i}" data-j="${j}" id="need-${i}-${j}">0</td>`;
+      }
+      h += '</tr>';
+    }
+    $(id).innerHTML = h + '</tbody></table></div>';
+  };
+  mkTable('tblAlloc', 'alloc', true);
+  mkTable('tblMax', 'max', true);
+  mkTable('tblNeed', 'need', false);
+
+  // Available
+  let ah = '';
+  for (let j = 0; j < state.M; j++) {
+    const v = preset && preset.available && preset.available[j] != null ? preset.available[j] : (j === 0 ? 3 : j === 1 ? 3 : 2);
+    ah += `<div class="avail-box"><span>${state.names[j]}</span><input class="cell" id="avail-${j}" type="number" min="0" max="999" value="${v}"/></div>`;
+  }
+  $('availRow').innerHTML = ah;
+
+  // Request row + pid select
+  let rh = '';
+  for (let j = 0; j < state.M; j++) rh += `<div class="avail-box"><span>${state.names[j]}</span><input class="cell" id="req-${j}" type="number" min="0" max="999" value="0"/></div>`;
+  $('reqRow').innerHTML = rh;
+  $('reqPid').innerHTML = Array.from({ length: state.N }, (_, i) => `<option value="${i}">P${i}</option>`).join('');
+
+  document.querySelectorAll('input.cell').forEach((el) => el.addEventListener('input', () => { refreshLive(); saveState(); }));
+  refreshLive();
+}
+
+/* ---------- Autoguardado del escenario ---------- */
+function saveState() {
+  try {
+    const s = readSystem();
+    if (!Number.isInteger(s.N) || !Number.isInteger(s.M)) return;
+    localStorage.setItem('banker-state', JSON.stringify({
+      N: s.N, M: s.M, names: state.names,
+      available: s.available, max: s.max, allocation: s.allocation,
+    }));
+  } catch { /* almacenamiento no disponible: no es crítico */ }
+}
+function loadSavedState() {
+  try {
+    const d = JSON.parse(localStorage.getItem('banker-state') || 'null');
+    if (d && d.allocation && d.max) return d;
+  } catch { /* JSON corrupto: ignorar */ }
+  return null;
+}
+
+function readSystem() {
+  const N = state.N, M = state.M;
+  const alloc = [], max = [], available = [];
+  for (let i = 0; i < N; i++) {
+    alloc.push([]); max.push([]);
+    for (let j = 0; j < M; j++) {
+      alloc[i].push(numVal(document.querySelector(`[data-mat="alloc"][data-i="${i}"][data-j="${j}"]`)));
+      max[i].push(numVal(document.querySelector(`[data-mat="max"][data-i="${i}"][data-j="${j}"]`)));
+    }
+  }
+  for (let j = 0; j < M; j++) available.push(numVal($(`avail-${j}`)));
+  return { N, M, allocation: alloc, max, available };
+}
+
+/* ---------- Validación en vivo + Need ---------- */
+function refreshLive() {
+  const s = readSystem();
+  const need = s.allocation.map((row, i) => row.map((v, j) => {
+    const a = Number.isInteger(v) ? v : 0;
+    const m = Number.isInteger(s.max[i][j]) ? s.max[i][j] : 0;
+    return m - a;
+  }));
+  for (let i = 0; i < s.N; i++)
+    for (let j = 0; j < s.M; j++) {
+      const el = $(`need-${i}-${j}`);
+      if (el) {
+        el.textContent = need[i][j];
+        el.classList.remove('cellok', 'cellbad'); // limpiar semáforo de la corrida anterior
+      }
+    }
+  // marcar celdas inválidas
+  document.querySelectorAll('[data-mat]').forEach((el) => el.classList.remove('bad'));
+  for (let i = 0; i < s.N; i++)
+    for (let j = 0; j < s.M; j++) {
+      const a = s.allocation[i][j], m = s.max[i][j];
+      const badA = !Number.isInteger(a) || a < 0;
+      const badM = !Number.isInteger(m) || m < 0;
+      const over = Number.isInteger(a) && Number.isInteger(m) && a > m;
+      if (badA || over) document.querySelector(`[data-mat="alloc"][data-i="${i}"][data-j="${j}"]`).classList.add('bad');
+      if (badM || over) document.querySelector(`[data-mat="max"][data-i="${i}"][data-j="${j}"]`).classList.add('bad');
+    }
+  const { errors } = validateSystem(s);
+  $('errBox').innerHTML = errors.length
+    ? `<div class="errors"><b>Datos con problemas (${errors.length}):</b><ul>${errors.map((e) => `<li>${e}</li>`).join('')}</ul></div>` : '';
+  return { system: s, need };
+}
+
+/* ---------- Ejecutar seguridad ---------- */
+function runSafety() {
+  const { system: s } = refreshLive();
+  const { errors } = validateSystem(s);
+  if (errors.length) {
+    setPill('', 'Datos con errores');
+    $('resultBanner').className = 'state-banner';
+    $('resultBanner').innerHTML = 'Hay errores en los datos. Corrígelos antes de analizar.';
+    $('resultCard').classList.remove('hidden');
+    return;
+  }
+  const need = calcNeed(s.max, s.allocation);
+  const r = safetyCheck(s.available, s.allocation, need);
+  state.lastResult = r;
+  state.lastSys = s;
+  state.stepIdx = 0;
+  state.showAllSteps = false;
+
+  const vec = (v) => `[ ${v.join(', ')} ]`;
+  if (r.safe) {
+    setPill('safe', 'Estado seguro');
+    $('resultBanner').className = 'state-banner safe';
+    $('resultBanner').innerHTML = `El sistema está en <b>estado seguro</b>: existe un orden en el que todos los procesos pueden terminar sin caer en interbloqueo. Work final: ${vec(r.finalWork)}.`;
+    $('seqRow').innerHTML = r.sequence.map((p, k) =>
+      `${k > 0 ? '<span class="arrow">→</span>' : ''}<span class="chip">P${p}</span>`).join('');
+  } else {
+    setPill('unsafe', 'Estado inseguro');
+    $('resultBanner').className = 'state-banner unsafe';
+    $('resultBanner').innerHTML = `El sistema está en <b>estado inseguro</b>: no existe ningún orden que permita que todos los procesos terminen, y Work queda en ${vec(r.finalWork)}.`;
+    $('seqRow').innerHTML = '';
+  }
+  // fila roja para procesos que no pueden terminar (rúbrica: estado inseguro)
+  document.querySelectorAll('table.matrix tr').forEach((tr) => tr.classList.remove('rowbad'));
+  r.unfinished.forEach((i) =>
+    document.querySelectorAll(`[data-mat="alloc"][data-i="${i}"], [data-mat="max"][data-i="${i}"], [data-mat="need"][data-i="${i}"]`)
+      .forEach((el) => el.closest('tr').classList.add('rowbad')));
+  paintNeedCells(r);
+  renderSteps();
+  $('resultCard').classList.remove('hidden');
+}
+
+/* ---------- Copiar análisis al portapapeles ---------- */
+function buildReport() {
+  const r = state.lastResult;
+  if (!r) return '';
+  const s = state.lastSys;
+  const vec = (v) => `[ ${v.join(', ')} ]`;
+  const L = [];
+  L.push('ANÁLISIS — ALGORITMO DEL BANQUERO');
+  L.push(`Fecha: ${new Date().toLocaleString('es-GT')}`);
+  L.push(`N = ${s.N} procesos, M = ${s.M} recursos`);
+  L.push(`Available: ${vec(s.available)}`);
+  L.push('');
+  L.push('P  | Allocation | Max        | Need');
+  s.allocation.forEach((row, i) =>
+    L.push(`P${i} | ${vec(row).padEnd(10)} | ${vec(s.max[i]).padEnd(10)} | ${vec(calcNeed(s.max, s.allocation)[i])}`));
+  L.push('');
+  if (r.safe) L.push(`ESTADO: SEGURO — secuencia ${r.sequence.map((i) => 'P' + i).join(' → ')}`);
+  else L.push(`ESTADO: INSEGURO — procesos bloqueados: ${r.unfinished.map((i) => 'P' + i).join(', ')}`);
+  L.push(`Work final: ${vec(r.finalWork)}`);
+  L.push('');
+  L.push('Pasos del algoritmo:');
+  r.steps.forEach((st, k) =>
+    L.push(` ${k + 1}. P${st.candidate} ${st.granted ? 'puede terminar: Work ' + vec(st.workBefore) + ' → ' + vec(st.workAfter) : 'espera: Need ' + vec(st.need) + ' > Work ' + vec(st.workBefore) + ' (en algún recurso)'}`));
+  return L.join('\n');
+}
+function copyReport() {
+  if (!state.lastResult) return;
+  const txt = buildReport();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(
+      () => $('btnCopy').textContent = '¡Copiado!',
+      () => fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt) {
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); $('btnCopy').textContent = '¡Copiado!'; } catch { alert(txt); }
+  document.body.removeChild(ta);
+}
+
+/* ---------- Semaforización de la condición Need <= Work ---------- */
+/* Cada celda de Need se pinta verde/roja según la última evaluación de ese
+   proceso en el log: verde si cumplía la condición, rojo en el recurso faltante. */
+function paintNeedCells(r) {
+  const lastEval = {};
+  r.steps.forEach((st) => { lastEval[st.candidate] = st; });
+  for (const pidStr of Object.keys(lastEval)) {
+    const i = Number(pidStr), st = lastEval[i];
+    for (let j = 0; j < st.need.length; j++) {
+      const el = $(`need-${i}-${j}`);
+      if (!el) continue;
+      el.classList.remove('cellok', 'cellbad');
+      el.classList.add(st.need[j] <= st.workBefore[j] ? 'cellok' : 'cellbad');
+    }
+  }
+}
+
+/* ---------- Paso a paso interactivo ---------- */
+function renderSteps() {
+  const r = state.lastResult;
+  if (!r) return;
+  const vec = (v) => `[ ${v.join(', ')} ]`;
+  const upto = state.showAllSteps ? r.steps.length - 1 : Math.min(state.stepIdx, r.steps.length - 1);
+  $('stepsBox').innerHTML = r.steps.slice(0, upto + 1).map((st) =>
+    `<div class="step ${st.granted ? 'yes' : 'no'}" data-p="${st.candidate}"><span class="tag">${st.granted ? 'P' + st.candidate + ' puede terminar' : 'P' + st.candidate + ' no puede terminar aún'}</span>
+     <span class="mono">Need[P${st.candidate}] = ${vec(st.need)} · Work = ${vec(st.workBefore)}${st.granted ? ' → ' + vec(st.workAfter) : ''}</span></div>`
+  ).join('');
+  if (staleRow) { staleRow.classList.remove('hl'); staleRow = null; }
+  const cur = $('stepsBox').children[upto];
+  if (cur && !state.showAllSteps) { // resaltar la fila del paso actual
+    staleRow = document.querySelector(`[data-mat="alloc"][data-i="${cur.dataset.p}"][data-j="0"]`);
+    if (staleRow) staleRow = staleRow.closest('tr');
+    if (staleRow) staleRow.classList.add('hl');
+  }
+  $('stepCount').textContent = `Paso ${upto + 1} de ${r.steps.length}`;
+  $('btnNext').disabled = state.showAllSteps || upto >= r.steps.length - 1;
+}
+
+function setPill(kind, text) {
+  $('statusPill').className = 'status-pill' + (kind ? ' ' + kind : '');
+  $('statusText').textContent = text;
+}
+
+/* ---------- Request ---------- */
+function runRequest() {
+  const { system: s } = refreshLive();
+  const { errors } = validateSystem(s);
+  const box = $('verdictBox');
+  if (errors.length) {
+    box.innerHTML = `<div class="verdict invalida">Corrige los errores de validación primero.</div>`;
+    return;
+  }
+  const pid = parseInt($('reqPid').value, 10);
+  const req = [];
+  for (let j = 0; j < s.M; j++) req.push(numVal($(`req-${j}`)));
+  if (req.some((v) => !Number.isInteger(v) || v < 0)) {
+    box.innerHTML = `<div class="verdict invalida">El vector Request no es válido: usa enteros mayores o iguales a 0.</div>`;
+    return;
+  }
+  const need = calcNeed(s.max, s.allocation);
+  const out = requestCheck(s.available, s.allocation, need, pid, req);
+  const cls = out.verdict === 'concedida' ? 'concedida' : out.verdict === 'invalida' ? 'invalida' : 'denegada';
+  box.innerHTML = `<div class="verdict ${cls}"><b>P${pid} solicita [ ${req.join(', ')} ]</b> → ${out.msg}</div>`;
+  state.pendingGrant = out.verdict === 'concedida' ? out.next : null;
+  $('btnApplyReq').disabled = !state.pendingGrant;
+}
+
+function applyGrant() {
+  if (!state.pendingGrant) return;
+  const g = state.pendingGrant;
+  for (let i = 0; i < state.N; i++)
+    for (let j = 0; j < state.M; j++) {
+      document.querySelector(`[data-mat="alloc"][data-i="${i}"][data-j="${j}"]`).value = g.allocation[i][j];
+    }
+  for (let j = 0; j < state.M; j++) $(`avail-${j}`).value = g.available[j];
+  state.pendingGrant = null;
+  $('btnApplyReq').disabled = true;
+  refreshLive();
+  saveState();
+  runSafety();
+}
+
+/* ---------- Escenarios ---------- */
+const SCN_SAFE = {
+  available: [3, 3, 2],
+  max: [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]],
+  alloc: [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]],
+};
+const SCN_UNSAFE = {
+  available: [2, 0, 0],
+  max: [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]],
+  alloc: [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]],
+};
+function loadScenario(scn, N, M, names) {
+  $('inN').value = N; $('inM').value = M; $('inNames').value = names;
+  buildTables(scn);
+  saveState();
+  runSafety();
+}
+
+/* ---------- Import / Export ---------- */
+function exportJSON() {
+  const { system: s } = refreshLive();
+  const blob = new Blob([JSON.stringify({ N: s.N, M: s.M, resources: state.names, available: s.available, max: s.max, allocation: s.allocation }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'escenario_banquero.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importJSON(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const d = JSON.parse(rd.result);
+      $('inN').value = d.N ?? d.n ?? 5;
+      $('inM').value = d.M ?? d.m ?? 3;
+      $('inNames').value = (d.resources || ['A', 'B', 'C']).join(',');
+      buildTables({ available: d.available, max: d.max, alloc: d.allocation });
+      saveState();
+      runSafety();
+    } catch { alert('Archivo JSON inválido.'); }
+  };
+  rd.readAsText(file);
+}
+
+/* ---------- Tema (por defecto: cyber oscuro; alterna a claro) ---------- */
+function initTheme() {
+  const saved = localStorage.getItem('banker-theme');
+  setTheme(saved !== 'light', false); // oscuro salvo preferencia guardada en claro; sin animación al arrancar
+}
+function setTheme(dark, animate = true) {
+  if (animate) document.body.classList.add('transition-theme'); // activar crossfade
+  if (dark) delete document.body.dataset.theme;
+  else document.body.dataset.theme = 'light';
+  $('btnTheme').textContent = dark ? 'Modo claro' : 'Modo cyber';
+  localStorage.setItem('banker-theme', dark ? 'dark' : 'light');
+}
+
+/* ---------- Resaltar la fila del paso revisado ---------- */
+function initStepHighlight() {
+  let lastRow = null;
+  $('stepsBox').addEventListener('mouseover', (e) => {
+    const st = e.target.closest('.step');
+    if (!st) return;
+    if (lastRow) lastRow.classList.remove('hl');
+    lastRow = document.querySelector(`[data-mat="alloc"][data-i="${st.dataset.p}"][data-j="0"]`)
+      && document.querySelector(`[data-mat="alloc"][data-i="${st.dataset.p}"][data-j="0"]`).closest('tr');
+    if (lastRow) lastRow.classList.add('hl');
+  });
+  $('stepsBox').addEventListener('mouseleave', () => {
+    if (lastRow) { lastRow.classList.remove('hl'); lastRow = null; }
+  });
+}
+
+/* ---------- Drag & drop de JSON ---------- */
+function initDragDrop() {
+  document.body.addEventListener('dragover', (e) => e.preventDefault());
+  document.body.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.endsWith('.json')) importJSON(f);
+  });
+}
+
+/* ---------- Atajo de teclado ---------- */
+function initShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSafety(); }
+  });
+}
+
+/* ---------- Wiring ---------- */
+$('btnTheme').onclick = () => setTheme(document.body.dataset.theme === 'light');
+initTheme();
+initStepHighlight();
+initDragDrop();
+initShortcuts();
+$('btnResize').onclick = () => {
+  const s = readSystem(); // preservar lo escrito antes de regenerar
+  buildTables({ available: s.available, max: s.max, alloc: s.allocation });
+  saveState();
+};
+$('btnRun').onclick = runSafety;
+$('btnNext').onclick = () => { state.showAllSteps = false; state.stepIdx = Math.min(state.stepIdx + 1, state.lastResult.steps.length - 1); renderSteps(); };
+$('btnAll').onclick = () => { state.showAllSteps = true; renderSteps(); };
+$('btnCopy').onclick = copyReport;
+$('btnSafe').onclick = () => loadScenario(SCN_SAFE, 5, 3, 'A,B,C');
+$('btnUnsafe').onclick = () => loadScenario(SCN_UNSAFE, 5, 3, 'A,B,C');
+$('btnRequest').onclick = runRequest;
+$('btnApplyReq').onclick = applyGrant;
+$('btnExport').onclick = exportJSON;
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = (e) => e.target.files[0] && importJSON(e.target.files[0]);
+$('inN').onchange = () => $('btnResize').click();
+$('inM').onchange = () => $('btnResize').click();
+
+const saved = loadSavedState(); // restaura la última sesión si existe
+buildTables(saved ? { available: saved.available, max: saved.max, alloc: saved.allocation } : SCN_SAFE);
+if (saved) {
+  $('inN').value = saved.N; $('inM').value = saved.M;
+  $('inNames').value = (saved.names || saved.resources || ['A', 'B', 'C']).join(',');
+}
+refreshLive();
+
+</script>
+</body>
+</html>

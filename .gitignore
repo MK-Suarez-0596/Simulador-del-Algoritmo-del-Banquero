@@ -1,0 +1,12 @@
+# Documento de enunciado (no forma parte del código)
+Proyecto_Algoritmo_del_Banquero.docx
+
+# Archivos generados
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.tmp
+~$*

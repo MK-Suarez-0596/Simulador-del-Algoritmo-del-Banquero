@@ -1,0 +1,1 @@
+{"M":3,"N":5,"allocation":[[0,1,0],[2,0,0],[3,0,2],[2,1,1],[0,0,2]],"available":[2,0,0],"descripcion":"Mismo sistema del caso seguro pero con Available=[2,0,0]. Ningún Need<=Work: ESTADO INSEGURO.","max":[[7,5,3],[3,2,2],[9,0,2],[2,2,2],[4,3,3]],"resources":["A","B","C"]}
